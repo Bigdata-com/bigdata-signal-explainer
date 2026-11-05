@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set nav = "batch" %}
+{% block title %}Batch{% endblock %}
+{% block content %}
+<section class="card hero">
+  <div class="eyebrow">Score list in, narratives out</div>
+  <h1>Explain a whole list</h1>
+  <p class="lede">Paste this week's top movers from your own model, or upload a CSV. Each name gets a full explanation, and the list comes back ranked by how unusual the sentiment move was.</p>
+  <form method="post" action="/batch" enctype="multipart/form-data">
+    <div class="grid g2">
+      <div>
+        <label for="rows">One per line: <span class="mono">TICKER[,YYYY-MM-DD][,your_score]</span></label>
+        <textarea id="rows" name="rows" placeholder="NVDA,2026-10-27,1.8&#10;META,,0.9&#10;LLY&#10;AVGO"></textarea>
+      </div>
+      <div>
+        <label for="file">…or upload a CSV</label><input id="file" type="file" name="file" accept=".csv,text/csv">
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
+          <div><label for="as_of">Default as-of date</label><input id="as_of" type="date" name="as_of" value="{{ today }}" max="{{ today }}" required></div>
+          <div><label for="lookback">Lookback</label><select id="lookback" name="lookback">{% for d in lookbacks %}<option value="{{ d }}" {{ 'selected' if d == 30 }}>{{ d }} days</option>{% endfor %}<option value="earnings">Since last earnings</option></select></div>
+        </div>
+        <div style="margin-top:12px"><label for="name">Batch name (optional)</label><input id="name" name="name" placeholder="Top movers week 43"></div>
+        <div style="margin-top:16px"><button type="submit">Run batch</button></div>
+      </div>
+    </div>
+  </form>
+</section>
+<section class="card">
+  <h2>Previous batches</h2>
+  {% if batches %}
+  <table><thead><tr><th>Batch</th><th>Created</th><th class="num">Names</th><th></th></tr></thead><tbody>
+  {% for b in batches %}<tr class="click" onclick="location='/batches/{{ b.id }}'"><td><strong>{{ b.name }}</strong></td><td class="mono">{{ b.created_at[:16]|replace("T", " ") }}</td><td class="num">{{ b.n }}</td><td><span class="pill {{ b.status }}">{{ b.status }}</span></td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="muted">None yet.</p>{% endif %}
+</section>
+{% endblock %}

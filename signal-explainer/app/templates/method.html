@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% set nav = "method" %}
+{% block title %}Method{% endblock %}
+{% block content %}
+<section class="card hero">
+  <div class="eyebrow">Method</div>
+  <h1>How an explanation is built</h1>
+  <p class="lede">Every number is computed deterministically from <a href="https://bigdata.com">Bigdata.com</a> data before the language model sees anything. {{ model }} only turns those facts and the cited passages into prose. A run makes about 22 Bigdata.com calls and one OpenAI call, and takes 20–40 seconds.</p>
+
+  <div class="diagram-wrap">
+  <svg class="diagram" viewBox="0 0 1040 300" role="img" aria-label="Pipeline: inputs, resolve, window, six parallel Bigdata.com pulls, deterministic attribution, GPT narrative, report">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-arrowhead"/></marker>
+    </defs>
+
+    <!-- lane labels -->
+    <text x="160" y="16" class="d-lane">BIGDATA.COM</text>
+    <line x1="160" y1="22" x2="660" y2="22" class="d-lane-line"/>
+    <text x="695" y="16" class="d-lane">DETERMINISTIC</text>
+    <line x1="695" y1="22" x2="835" y2="22" class="d-lane-line"/>
+    <text x="870" y="16" class="d-lane">OPENAI</text>
+    <line x1="870" y1="22" x2="1030" y2="22" class="d-lane-line"/>
+
+    <!-- inputs -->
+    <rect x="10" y="110" width="120" height="80" rx="10" class="d-box d-input"/>
+    <text x="70" y="140" class="d-title" text-anchor="middle">Inputs</text>
+    <text x="70" y="158" class="d-sub" text-anchor="middle">ticker · as-of</text>
+    <text x="70" y="173" class="d-sub" text-anchor="middle">window</text>
+
+    <!-- resolve + window -->
+    <rect x="160" y="110" width="120" height="80" rx="10" class="d-box d-bd"/>
+    <text x="220" y="140" class="d-title" text-anchor="middle"><tspan class="d-num">1</tspan> Resolve</text>
+    <text x="220" y="158" class="d-sub" text-anchor="middle">Knowledge Graph</text>
+    <text x="220" y="173" class="d-mono" text-anchor="middle">NVDA → E09E2B</text>
+
+    <rect x="305" y="110" width="120" height="80" rx="10" class="d-box d-bd"/>
+    <text x="365" y="140" class="d-title" text-anchor="middle"><tspan class="d-num">2</tspan> Window</text>
+    <text x="365" y="158" class="d-sub" text-anchor="middle">N days, or since</text>
+    <text x="365" y="173" class="d-sub" text-anchor="middle">last earnings call</text>
+
+    <line x1="130" y1="150" x2="157" y2="150" class="d-arrow" marker-end="url(#arr)"/>
+    <line x1="280" y1="150" x2="302" y2="150" class="d-arrow" marker-end="url(#arr)"/>
+
+    <!-- parallel fan -->
+    {% set fan = [
+      ("3", "Sentiment · 1-year history", "/v1/entity-sentiment/", False),
+      ("4", "News · this window", "/v1/search ×6 slices", False),
+      ("4", "News · prior window", "/v1/search ×6 slices", False),
+      ("5", "Event topics · ×2", "/co-mentions/topics", False),
+      ("6", "Co-mentioned peers", "/co-mentions/entities", False),
+      ("7", "Earnings-call passages", "since-earnings mode only", True)] %}
+    {% for num, title, sub, dashed in fan %}{% set y = 32 + loop.index0 * 43 %}
+    <path d="M425,150 C445,150 440,{{ y + 18 }} 457,{{ y + 18 }}" class="d-arrow" marker-end="url(#arr)"/>
+    <rect x="460" y="{{ y }}" width="200" height="36" rx="8" class="d-box d-bd {{ 'd-dashed' if dashed }}"/>
+    <text x="472" y="{{ y + 15 }}" class="d-title-sm"><tspan class="d-num">{{ num }}</tspan> {{ title }}</text>
+    <text x="472" y="{{ y + 29 }}" class="d-mono">{{ sub }}</text>
+    <line x1="660" y1="{{ y + 18 }}" x2="692" y2="{{ y + 18 }}" class="d-arrow" marker-end="url(#arr)"/>
+    {% endfor %}
+
+    <!-- attribution -->
+    <rect x="695" y="32" width="140" height="250" rx="10" class="d-box d-det"/>
+    <text x="765" y="62" class="d-title" text-anchor="middle">Attribute</text>
+    <text x="765" y="78" class="d-title" text-anchor="middle">&amp; compare</text>
+    <text x="765" y="112" class="d-sub" text-anchor="middle">z-score of the move</text>
+    <text x="765" y="130" class="d-sub" text-anchor="middle">vs own history</text>
+    <text x="765" y="160" class="d-sub" text-anchor="middle">driver impact =</text>
+    <text x="765" y="178" class="d-sub" text-anchor="middle">tone now − prior,</text>
+    <text x="765" y="196" class="d-sub" text-anchor="middle">per EDGE event</text>
+    <text x="765" y="226" class="d-sub" text-anchor="middle">stock vs sector</text>
+    <text x="765" y="244" class="d-sub" text-anchor="middle">(peer median)</text>
+
+    <!-- gpt + output -->
+    <line x1="835" y1="95" x2="867" y2="95" class="d-arrow" marker-end="url(#arr)"/>
+    <rect x="870" y="55" width="160" height="80" rx="10" class="d-box d-ai"/>
+    <text x="950" y="85" class="d-title" text-anchor="middle"><tspan class="d-num">8</tspan> Narrative</text>
+    <text x="950" y="103" class="d-mono" text-anchor="middle">{{ model }}</text>
+    <text x="950" y="120" class="d-sub" text-anchor="middle">strict JSON, cited</text>
+    <line x1="950" y1="135" x2="950" y2="172" class="d-arrow" marker-end="url(#arr)"/>
+    <rect x="870" y="175" width="160" height="80" rx="10" class="d-box d-input"/>
+    <text x="950" y="205" class="d-title" text-anchor="middle">Report</text>
+    <text x="950" y="223" class="d-sub" text-anchor="middle">web · Markdown · JSON</text>
+    <text x="950" y="239" class="d-sub" text-anchor="middle">Claude · ChatGPT</text>
+  </svg>
+  </div>
+  <div class="legend" style="margin-top:10px"><span><i class="sw sw-bd"></i>Bigdata.com call</span><span><i class="sw sw-det"></i>computed locally, no LLM</span><span><i class="sw sw-ai"></i>OpenAI call</span><span><i class="sw sw-dash"></i>optional</span></div>
+</section>
+
+<section class="card">
+  <h2>Each step, with the calls it makes</h2>
+  <p class="small muted">Real request bodies for NVDA, as of 2026-10-27, 30-day window. Responses are trimmed to the fields the app uses. All Bigdata.com calls go to <span class="mono">https://api.bigdata.com</span> with an <span class="mono">x-api-key</span> header. Calls for windows that end before today are cached in SQLite, so re-running a past date makes no new calls.</p>
+
+  <div class="calls">
+  {% set steps = [
+    {"n": "1", "title": "Resolve the company", "who": "bd",
+     "why": "Turns a ticker or name into a Bigdata.com entity, together with the industry group used to pick peers. The result is cached, so this runs once per name.",
+     "req": "POST /v1/knowledge-graph/companies\n{\n  \"query\": \"NVDA\",\n  \"types\": [\"PUBLIC\"]\n}",
+     "res": "{\"results\": [{\n  \"id\": \"E09E2B\",\n  \"name\": \"NVIDIA Corp.\",\n  \"ticker\": \"NVDA\",\n  \"sector\": \"Technology\",\n  \"industry_group\": \"Semiconductors\"\n}]}"},
+    {"n": "2", "title": "Set the window", "who": "bd",
+     "why": "A fixed lookback needs no call. In \"since last earnings\" mode, the app finds the latest earnings-call transcript on or before the as-of date, and the window starts there. The prior window is the same length, immediately before.",
+     "req": "POST /v1/search\n{\n  \"search_mode\": \"fast\",\n  \"query\": {\n    \"filters\": {\n      \"entity\": {\"any_of\": [\"E09E2B\"]},\n      \"timestamp\": {\"start\": \"2026-04-10T00:00:00Z\",\n                    \"end\": \"2026-10-27T23:59:59Z\"},\n      \"document_type\": {\"mode\": \"INCLUDE\",\n                         \"values\": [\"TRANSCRIPT\"]}\n    },\n    \"max_chunks\": 60\n  }\n}",
+     "res": "{\"results\": [{\n  \"headline\": \"NVIDIA Corp.: Q2 2027 Earnings Call\",\n  \"timestamp\": \"2026-08-26T21:00:00\",\n  \"document_type\": \"TRANSCRIPT\"\n}, …]}\n\n→ window 2026-08-26 → 2026-10-27"},
+    {"n": "3", "title": "Size the move", "who": "bd",
+     "why": "Daily entity sentiment for the window plus one year before it. The change over the window is scored as a z-score against every same-length change in that prior year, using only data before the window, so there is no look-ahead.",
+     "req": "POST /v1/entity-sentiment/\n{\n  \"identifier\": {\"type\": \"rp_entity_id\",\n                 \"value\": \"E09E2B\"},\n  \"timestamp\": {\"start\": \"2025-09-27\",\n                \"end\": \"2026-10-27\"}\n}",
+     "res": "{\"results\": {\"values\": [\n  {\"date\": \"2026-09-27\",\n   \"daily_sentiment\": 0.3343,\n   \"sentiment_pressure\": …,\n   \"abnormal_media_attention\": …},\n  …\n  {\"date\": \"2026-10-27\",\n   \"daily_sentiment\": 0.2753, …}\n]}}\n\n→ change −0.059, −0.5σ vs own history"},
+    {"n": "4", "title": "Pull the news, now and before", "who": "bd",
+     "why": "Each window is split into 6 even slices so busy days don't crowd out quiet ones: 12 searches in total, up to 120 passages each. Every passage comes back with its sentiment and EDGE event tags. A tag counts toward the company only if the company is named within 60 characters of it.",
+     "req": "POST /v1/search          (×6 slices × 2 windows)\n{\n  \"search_mode\": \"fast\",\n  \"query\": {\n    \"filters\": {\n      \"entity\": {\"any_of\": [\"E09E2B\"]},\n      \"timestamp\": {\"start\": \"2026-10-03T00:00:00Z\",\n                    \"end\": \"2026-10-08T23:59:59Z\"},\n      \"document_type\": {\"mode\": \"INCLUDE\",\n                         \"values\": [\"NEWS\"]}\n    },\n    \"max_chunks\": 120,\n    \"ranking_params\": {\"freshness_boost\": 0}\n  }\n}",
+     "res": "{\"results\": [{\n  \"headline\": \"Nvidia's $20bn licensing deal with Groq\n               faces lawsuit from jilted engineers\",\n  \"source\": {\"name\": \"Financial Times\"},\n  \"timestamp\": \"2026-10-05T09:00:03\",\n  \"chunks\": [{\n    \"text\": \"Nvidia's $20bn licensing deal …\",\n    \"sentiment\": -0.88,\n    \"detections\": [\n      {\"type\": \"entity\", \"id\": \"E09E2B\",\n       \"start\": 0, \"end\": 6},\n      {\"type\": \"topic\",\n       \"id\": \"legal,litigation,lawsuit,,\", …}\n    ]\n  }]\n}, …]}"},
+    {"n": "5", "title": "Check which storylines are new", "who": "bd",
+     "why": "Counts of event topics for each window, to flag drivers that are new this window or running at an unusual volume, for example \"Partnership: 1.8× usual volume\".",
+     "req": "POST /v1/search/co-mentions/topics   (×2 windows)\n{\n  \"query\": {\"filters\": {\n    \"entity\": {\"any_of\": [\"E09E2B\"]},\n    \"timestamp\": {\"start\": \"2026-09-27T00:00:00Z\",\n                  \"end\": \"2026-10-27T23:59:59Z\"}\n  }},\n  \"limit\": 100\n}",
+     "res": "{\"results\": {\"topics\": [\n  {\"id\": \"business,partnerships,partnership,,\",\n   \"total_chunks_count\": 4936},\n  {\"id\": \"business,stock-prices,stock-price,loss,\",\n   \"total_chunks_count\": 7670},\n  …\n]}}"},
+    {"n": "6", "title": "Compare with peers", "who": "bd",
+     "why": "Peers come from the news itself: the companies most often mentioned alongside the target in the window, filtered to the same industry group. Their sentiment change over the same window gives a sector median; the target's change minus that median is the stock-specific part.",
+     "req": "POST /v1/search/co-mentions/entities\n{ \"query\": {\"filters\": {…same as step 5…}},\n  \"limit\": 40 }\n\nPOST /v1/knowledge-graph/entities/id\n{ \"values\": [\"09DE1F\", \"49BBBC\", \"69345C\", …] }\n\nPOST /v1/entity-sentiment/     (×4 peers)\n{ \"identifier\": {\"type\": \"rp_entity_id\",\n                 \"value\": \"09DE1F\"}, … }",
+     "res": "peers (same industry group: Semiconductors)\n  Broadcom     −0.024\n  Micron       −0.024\n  AMD          +0.036\n  TSMC         +0.071\n\npeer median    +0.006\nNVIDIA         −0.059\n→ stock-specific part −0.065: \"stock-specific\""},
+    {"n": "7", "title": "Read the earnings call (optional)", "who": "bd",
+     "why": "Since-earnings mode only. The app takes the most opinionated, event-tagged passages from the call ([M1]…[M10]) so the narrative can compare what management said with what the news says now.",
+     "req": "POST /v1/search\n{\n  \"search_mode\": \"fast\",\n  \"query\": {\n    \"filters\": {\n      \"entity\": {\"any_of\": [\"E09E2B\"]},\n      \"timestamp\": {\"start\": \"2026-08-26T00:00:00Z\",\n                    \"end\": \"2026-08-27T23:59:59Z\"},\n      \"document_type\": {\"mode\": \"INCLUDE\",\n                         \"values\": [\"TRANSCRIPT\"]}\n    },\n    \"max_chunks\": 80\n  }\n}",
+     "res": "management passages kept for the narrative:\n[\n  {\"id\": \"M1\", \"date\": \"2026-08-26\",\n   \"sentiment\": …, \"text\": \"<passage from the call>\"},\n  … up to M10\n]\n\nranked by |sentiment| + relevance,\nevent-tagged passages first"},
+    {"n": "8", "title": "Write the narrative", "who": "ai",
+     "why": "A single OpenAI call. The model sees only the computed facts and the evidence passages, never the raw series, and must answer in a strict JSON schema with a citation on every claim. Without an OpenAI key, a template narrative is used instead.",
+     "req": "POST https://api.openai.com/v1/responses\n{\n  \"model\": \"" ~ model ~ "\",\n  \"input\": [\n    {\"role\": \"system\", \"content\":\n      \"…Use ONLY the facts and evidence provided.\n       Point-in-time: nothing after AS_OF.\n       Drivers explain the CHANGE…\"},\n    {\"role\": \"user\", \"content\":\n      \"AS_OF = 2026-10-27  FACTS: {move, news_tone,\n       drivers[], evidence[E1..E17], peers, …}\"}\n  ],\n  \"text\": {\"format\": {\n    \"type\": \"json_schema\", \"strict\": true,\n    \"name\": \"sentiment_narrative\",\n    \"schema\": {headline, tone, summary, narrative,\n               drivers[], stock_vs_sector, thesis_drift,\n               what_to_watch[], questions_for_management[],\n               confidence, caveats}\n  }}\n}",
+     "res": "{\n  \"headline\": \"NVIDIA sentiment eases as Groq litigation\n               offsets stronger partnership coverage\",\n  \"tone\": \"mixed\",\n  \"drivers\": [{\n    \"key\": \"general\",\n    \"title\": \"Groq lawsuit weighs on coverage\",\n    \"explanation\": \"… allegations concerning the\n       structure of NVIDIA's Groq licensing deal\n       [E1][E2].\"\n  }, …],\n  \"confidence\": \"medium\"\n}"},
+  ] %}
+  {% for s in steps %}
+  <div class="call">
+    <div class="call-head">
+      <span class="call-num {{ s.who }}">{{ s.n }}</span>
+      <div><h3>{{ s.title }}</h3><p class="small muted">{{ s.why }}</p></div>
+      <span class="pill {{ 'ai' if s.who == 'ai' else 'bd' }}">{{ "OpenAI" if s.who == "ai" else "Bigdata.com" }}</span>
+    </div>
+    <details {{ 'open' if loop.first }}>
+      <summary>Request and response</summary>
+      <div class="code-grid">
+        <div><div class="code-label">Request</div><pre class="code">{{ s.req }}</pre></div>
+        <div><div class="code-label">Response (trimmed)</div><pre class="code">{{ s.res }}</pre></div>
+      </div>
+    </details>
+  </div>
+  {% endfor %}
+  </div>
+</section>
+
+<section class="card det" id="deterministic">
+  <div class="eyebrow">Deterministic step · plain calculation, no AI</div>
+  <h2>How the numbers are computed</h2>
+  <p class="small muted">Before any AI is involved, the app works out three answers with simple arithmetic. The same inputs always give the same answers.</p>
+
+  <div class="det-grid">
+    <div class="det-box">
+      <h3><span class="call-num det">A</span> Is the move unusual?</h3>
+      <p class="small">Compare this move with the stock's own moves over the past year. A big move for this stock gets flagged.</p>
+    </div>
+    <div class="det-box">
+      <h3><span class="call-num det">B</span> What drove it?</h3>
+      <p class="small">Group the news by event type (lawsuit, partnership, product launch…) and see which groups got more positive or more negative than before.</p>
+    </div>
+    <div class="det-box">
+      <h3><span class="call-num det">C</span> Stock or sector?</h3>
+      <p class="small">Check whether similar companies moved the same way. If they did, it's sector-wide; if not, it's specific to this stock.</p>
+    </div>
+  </div>
+
+  <div class="det-callout">
+    <b>Running it on your side?</b> You have full flexibility. These are simple rules, not a black box, so you can calculate each step your own way: use your own score, your own factor groups, your own peers, windows and thresholds. Bigdata.com supplies the data and evidence; the logic is yours.
+  </div>
+</section>
+
+{% endblock %}

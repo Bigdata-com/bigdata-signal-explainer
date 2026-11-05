@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{{ run.ticker }} · {{ run.as_of }}{% endblock %}
+{% block content %}
+{% if run.status != "done" %}
+<section class="card">
+  <div class="eyebrow">{{ run.ticker }} · as of {{ run.as_of }}</div>
+  {% if run.status == "error" %}
+    <h1>Couldn't explain this one</h1>
+    <p class="err">{{ run.error }}</p>
+    <a class="btn ghost" href="/">Try another</a>
+  {% else %}
+    <div class="progress"><div class="spinner"></div><div><strong id="prog">{{ run.progress }}</strong><div class="small muted">Usually 20–60 seconds. This page refreshes itself.</div></div></div>
+  {% endif %}
+</section>
+{% else %}
+{% set f = run.facts %}{% set n = run.narrative %}{% set m = f.move %}{% set c = f.company %}{% set w = f.window %}
+<section class="card">
+  <div class="report-head">
+    <div>
+      <div class="eyebrow">{{ c.name }} · {{ c.ticker or c.id }} · {{ c.industry_group or c.sector or "" }}</div>
+      <h1>{{ n.headline }}</h1>
+      <div class="small muted">As of <strong>{{ f.as_of }}</strong> ·
+        {% if w.earnings_call %}since the {{ w.earnings_call.date }} earnings call{% else %}{{ w.days }}-day lookback{% endif %}
+        · <span class="pill {{ n.tone }}">{{ n.tone }}</span> · confidence {{ n.confidence }}</div>
+      <div class="windows"><span class="win-now">Explaining <strong>{{ ws.now }}</strong></span><span class="win-prior">compared with the prior window {{ ws.prior }}</span></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" onclick="copyText('mdsrc')">Copy for PMs</button>
+      <button class="btn ghost" onclick="window.print()">PDF</button>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v">{{ m.end_level|signed }}</div><div class="l">Sentiment now (from {{ m.start_level|signed }})</div></div>
+    <div class="kpi"><div class="v {{ 'pos' if m.change > 0 else 'neg' }}">{{ m.change|signed(3) }}</div><div class="l">Change over window</div></div>
+    <div class="kpi"><div class="v">{{ (m.z_score|signed(1) ~ "σ") if m.z_score is not none else "—" }}</div><div class="l">vs own history{% if m.percentile is not none %} · larger than {{ m.percentile|pct }} of past moves{% endif %}</div></div>
+    <div class="kpi"><div class="v">{{ (f.peers.verdict or "—") if f.peers.available else "—" }}</div><div class="l">Stock-specific or sector-wide</div></div>
+  </div>
+  <p class="summary">{{ n.summary|cite }}</p>
+</section>
+
+<div class="grid g2">
+  <section class="card">
+    <h2>What happened</h2>
+    <p class="narrative">{{ n.narrative|cite }}</p>
+    {% if n.thesis_drift %}<h3 style="margin-top:18px">Since the last earnings call</h3><p class="narrative">{{ n.thesis_drift|cite }}</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Sentiment path</h2>
+    {{ chart|safe }}
+    <div class="legend"><span><i></i>{{ c.ticker or c.name }}</span>{% if f.chart.peers %}<span><i class="peer"></i>peers</span>{% endif %}<span><i class="win"></i>window</span><span>● biggest daily moves</span></div>
+    <div class="small muted" style="margin-top:10px">Sentiment pressure {{ m.sentiment_pressure|signed }} · abnormal media attention {{ m.abnormal_media_attention|signed }}{% if m.peak_attention %} (peak {{ m.peak_attention.value|signed }} on {{ m.peak_attention.date }}){% endif %}</div>
+  </section>
+</div>
+
+<section class="card drivers">
+  <h2>What drove the change</h2>
+  {% set a = f.attribution %}
+  <p class="small muted">Average news tone about {{ c.name }}: {{ a.tone_prior|signed(3) }} in the prior window ({{ ws.prior }}) → {{ a.tone_now|signed(3) }} in this window ({{ ws.now }}) ({{ a.tone_change|signed(3) }}), split by EDGE event type. {{ a.passages_used }} passages now vs {{ a.prior_passages_used }} before. Bars show each event type's share of that change; "market reaction" drivers describe price moves, not causes.</p>
+  {% set maxshare = (a.drivers|map(attribute='share')|max) if a.drivers else 1 %}
+  {% for d in a.drivers %}{% set t = titles.get(d.key, {}) %}
+  <div class="row">
+    <div>
+      <div class="title">{{ t.title or d.label }}{% if d.reactive %}<span class="tag">market reaction</span>{% endif %}{% if d.lift and d.lift.new %}<span class="tag">new this window</span>{% elif d.lift and d.lift.ratio and d.lift.ratio >= 1.5 %}<span class="tag">{{ "%.1f"|format(d.lift.ratio) }}× usual volume</span>{% endif %}</div>
+      <div class="meta">{{ d.label }} · {{ d.documents }} articles now / {{ d.prior_documents }} before{% if d.avg_sentiment is not none %} · avg tone {{ d.avg_sentiment|signed }}{% endif %}</div>
+      <div class="bar"><span class="{{ d.direction }}" style="width: {{ (d.share / maxshare * 100)|round(1) }}%"></span></div>
+      <div class="meta"><span class="{{ 'pos' if d.direction == 'positive' else 'neg' if d.direction == 'negative' }}">{{ {'positive': 'Lifted', 'negative': 'Weighed on'}.get(d.direction, 'Neutral for') }} tone by {{ d.impact|signed(3) }}</span> · {{ d.share|pct }} of the change</div>
+    </div>
+    <div class="narrative small">{{ (t.explanation or "")|cite }}
+      <div class="meta">Evidence: {% for e in d.evidence_ids %}{% set faded = evidence.get(e, {}).get('window') == 'prior' %}<a class="cite{{ ' faded' if faded }}" href="#{{ e }}" {% if faded %}title="Faded: from the prior window, {{ ws.prior }}"{% endif %}>{{ e }}</a> {% endfor %}{% if d.evidence_ids and evidence.get(d.evidence_ids[0], {}).get('window') == 'prior' %}<span class="tag faded-tag">faded since {{ ws.prior }}</span>{% endif %}</div></div>
+  </div>
+  {% endfor %}
+</section>
+
+<div class="grid g2">
+  <section class="card">
+    <h2>Stock-specific or sector-wide?</h2>
+    {% if f.peers.available %}
+      <div class="verdict">{{ f.peers.verdict }}</div>
+      <p class="narrative">{{ n.stock_vs_sector|cite }}</p>
+      <table class="peer-table">
+        <thead><tr><th>Company</th><th class="num">Δ sentiment</th></tr></thead>
+        <tbody>
+          <tr><td>{{ c.name }} <span class="tag">target</span></td><td class="num {{ 'pos' if m.change > 0 else 'neg' }}">{{ m.change|signed(3) }}</td></tr>
+          {% for p in f.peers.peers %}<tr><td>{{ p.name }}</td><td class="num">{{ p.change|signed(3) }}</td></tr>{% endfor %}
+          <tr><td class="muted">Peer median → stock-specific part</td><td class="num">{{ f.peers.peer_median_change|signed(3) }} → <strong>{{ f.peers.idiosyncratic_change|signed(3) }}</strong></td></tr>
+        </tbody>
+      </table>
+    {% else %}<p class="muted">{{ n.stock_vs_sector }}</p>{% endif %}
+  </section>
+  <section class="card">
+    {% if n.what_to_watch %}<h2>What to watch</h2><ul class="clean">{% for x in n.what_to_watch %}<li>{{ x|cite }}</li>{% endfor %}</ul>{% endif %}
+    {% if n.questions_for_management %}<h2 style="margin-top:18px">Questions for management</h2><ul class="clean">{% for x in n.questions_for_management %}<li>{{ x|cite }}</li>{% endfor %}</ul>{% endif %}
+    {% if n.caveats %}<p class="small muted" style="margin-top:16px">Caveats: {{ n.caveats }}</p>{% endif %}
+  </section>
+</div>
+
+{% macro ev_item(e) %}
+  <div class="ev" id="{{ e.id }}">
+    <div class="h"><span class="id">{{ e.id }}</span>{% if e.url %}<a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.headline }}</a>{% else %}{{ e.headline }}{% endif %}</div>
+    <div class="small muted">{{ e.date }} · {{ e.source or "" }} · sentiment <span class="{{ 'pos' if e.sentiment > 0 else 'neg' }}">{{ e.sentiment|signed }}</span></div>
+    <div class="q">“{{ e.text }}”</div>
+  </div>
+{% endmacro %}
+{% set ev_new = f.attribution.evidence|rejectattr('window', 'equalto', 'prior')|list %}
+{% set ev_faded = f.attribution.evidence|selectattr('window', 'equalto', 'prior')|list %}
+<section class="card evidence">
+  <h2>Evidence</h2>
+  <h3 class="ev-group">New in this window <span class="ev-range">{{ ws.now }}</span></h3>
+  {% for e in ev_new %}{{ ev_item(e) }}{% else %}<p class="small muted">No new evidence cited.</p>{% endfor %}
+  {% if ev_faded %}
+  <div class="ev-faded">
+    <h3 class="ev-group">Faded since the prior window <span class="ev-range">{{ ws.prior }}</span></h3>
+    <p class="small muted">These stories were in the news before the window and went quiet during it. Their absence moved the tone: good news that faded weighs on it, bad news that faded lifts it.</p>
+    {% for e in ev_faded %}{{ ev_item(e) }}{% endfor %}
+  </div>
+  {% endif %}
+  {% if f.management %}<h3 class="ev-group">Management on the {{ f.window.earnings_call.date }} earnings call</h3>{% endif %}
+  {% for e in f.management %}
+  <div class="ev" id="{{ e.id }}">
+    <div class="h"><span class="id">{{ e.id }}</span>{{ e.date }}</div>
+    <div class="q">“{{ e.text }}”</div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="card no-print">
+  <details class="md"><summary>Markdown for email, Teams, ChatGPT or Claude</summary><pre id="mdsrc">{{ markdown }}</pre></details>
+  <p class="small muted" style="margin-top:10px">Narrative by {{ run.model }} from the facts above · <a href="/runs/{{ run.id }}/markdown">raw .md</a> · <a href="/api/runs/{{ run.id }}">JSON</a></p>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if run.status in ("queued", "running") %}
+<script>
+  setInterval(async () => {
+    const r = await fetch('/api/runs/{{ run.id }}').then(r => r.json()).catch(() => null);
+    if (!r) return;
+    if (r.status === 'done' || r.status === 'error') location.reload();
+    else document.getElementById('prog').textContent = r.progress;
+  }, 1500);
+</script>
+{% endif %}
+{% endblock %}

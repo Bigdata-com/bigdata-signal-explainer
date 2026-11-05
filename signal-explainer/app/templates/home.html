@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set nav = "home" %}
+{% block content %}
+<section class="card hero">
+  <div class="eyebrow">From quant signal to PM narrative</div>
+  <h1>Why did the sentiment move?</h1>
+  <p class="lede">Pick a name, a date and a lookback window. Signal Explainer breaks the news-driven sentiment move into the events behind it, tells you whether it was stock-specific or sector-wide, and writes a cited narrative your fundamental team can read in a minute.</p>
+  <form class="explain" method="post" action="/explain">
+    <div><label for="ticker">Company</label><input id="ticker" name="ticker" placeholder="Ticker or name, e.g. NVDA" required autofocus></div>
+    <div><label for="as_of">As of (point in time)</label><input id="as_of" type="date" name="as_of" value="{{ today }}" max="{{ today }}" required></div>
+    <div><label for="lookback">Lookback window</label>
+      <select id="lookback" name="lookback">
+        {% for d in lookbacks %}<option value="{{ d }}" {{ 'selected' if d == 30 }}>{{ d }} days</option>{% endfor %}
+        <option value="earnings">Since last earnings call</option>
+      </select></div>
+    <div><button type="submit">Explain the move</button></div>
+  </form>
+  {% if not request.state.user %}<p class="small muted signin-hint">You'll be asked for your Bigdata API key when you run an explanation, so it runs on your own account.</p>{% endif %}
+  <div class="chips"><span class="small muted">Try:</span>
+    {% for t in ["NVDA", "META", "LLY", "AVGO", "AMZN", "NFLX", "TSLA"] %}<span class="chip" onclick="document.getElementById('ticker').value='{{ t }}'">{{ t }}</span>{% endfor %}
+  </div>
+</section>
+
+<div class="grid g3" style="margin-top:18px">
+  <div class="card"><div class="eyebrow">1 · How unusual</div><h3>Size the move</h3><p class="small muted">Change in Bigdata.com daily entity sentiment over your window, scored against the stock's own history of same-length moves.</p></div>
+  <div class="card"><div class="eyebrow">2 · Why</div><h3>Attribute to events</h3><p class="small muted">Every news passage about the company is tagged with EDGE event types; sentiment is split across them so you see which events moved the needle.</p></div>
+  <div class="card"><div class="eyebrow">3 · Stock or sector</div><h3>Separate the noise</h3><p class="small muted">Same-industry companies that share the news cycle are compared, isolating the stock-specific part of the move.</p></div>
+</div>
+
+{% macro run_table(rows) %}
+  <div class="table-scroll"><table>
+    <thead><tr><th>Company</th><th>As of</th><th>Window</th><th>Headline</th><th class="num">Δ sentiment</th><th class="num">Unusual (σ)</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="click" onclick="location='/runs/{{ r.id }}'">
+        <td><strong>{{ r.ticker }}</strong><div class="small muted">{{ r.company or "" }}</div></td>
+        <td class="mono">{{ r.as_of }}</td>
+        <td class="small">{{ "Since earnings" if r.mode == "since_earnings" else (r.lookback_days ~ "d") }}</td>
+        <td>{{ r.headline or "" }}</td>
+        <td class="num {{ 'pos' if (r.change or 0) > 0 else 'neg' if (r.change or 0) < 0 }}">{{ r.change|signed(3) }}</td>
+        <td class="num">{{ "%.1f"|format(r.surprise) if r.surprise is not none else "—" }}</td>
+        <td><span class="pill {{ r.status }}">{{ r.status }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+{% endmacro %}
+
+{% if examples %}
+<section class="card">
+  <h2>Example explanations</h2>
+  <p class="small muted">Open to everyone, no sign-in needed.</p>
+  {{ run_table(examples) }}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Your explanations</h2>
+  {% if not request.state.user %}<p class="muted"><a href="/login?next=/">Sign in with your Bigdata API key</a> to explain your own names. Your reports are visible only to you.</p>
+  {% elif recent %}{{ run_table(recent) }}
+  {% else %}<p class="muted">No runs yet. Explain a name above, or run a whole list from <a href="/batch">Batch</a>.</p>{% endif %}
+</section>
+{% endblock %}

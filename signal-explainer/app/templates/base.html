@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Signal Explainer{% endblock %} · Bigdata.com</title>
+  <link rel="icon" href="/static/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="/"><img src="/static/bigdata-logo-full.png" alt="Bigdata.com by RavenPack"><span class="app">Signal Explainer</span></a>
+      <nav class="nav">
+        <a href="/" class="{{ 'on' if nav == 'home' }}">Explain</a>
+        <a href="/batch" class="{{ 'on' if nav == 'batch' }}">Batch</a>
+        <a href="/method" class="{{ 'on' if nav == 'method' }}">Method</a>
+      </nav>
+      {% if request.state.user %}
+      <form class="who" method="post" action="/logout">
+        <span class="who-name" title="Signed in with Bigdata API key …{{ request.state.user.id[-4:] }}">{{ request.state.user.label }}</span>
+        <button type="submit" class="btn ghost btn-sm">Sign out</button>
+      </form>
+      {% else %}
+      <div class="who"><a class="btn btn-sm" href="/login?next={{ request.url.path|urlencode }}">Sign in</a></div>
+      {% endif %}
+    </div>
+  </header>
+  <main class="wrap">{% block content %}{% endblock %}</main>
+  <footer><div class="wrap">Data: <a href="https://bigdata.com">Bigdata.com</a> entity sentiment, news analytics and EDGE event taxonomy. Narratives are generated from cited passages only; not investment advice.</div></footer>
+  <div class="toast" id="toast"></div>
+  <script>
+    function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1800);}
+    async function copyText(id){try{await navigator.clipboard.writeText(document.getElementById(id).textContent);toast('Copied as Markdown');}catch(e){toast('Copy failed');}}
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

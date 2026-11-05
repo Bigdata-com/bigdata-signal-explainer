@@ -1,0 +1,488 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Signal Explainer (Bigdata.com)",
+    "description": "Explain why a company's news-driven sentiment moved, as a narrative for fundamental PMs. Data from Bigdata.com.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://YOUR-SIGNAL-EXPLAINER-HOST"
+    }
+  ],
+  "paths": {
+    "/api/explain": {
+      "post": {
+        "summary": "Explain why a company's news sentiment moved over a window",
+        "operationId": "explainSentiment",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Explainsentiment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}": {
+      "get": {
+        "summary": "Get a run's status and, when done, its narrative, drivers and evidence",
+        "operationId": "getRun",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Getrun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batch": {
+      "post": {
+        "summary": "Explain several names at once; returns a batch id to poll",
+        "operationId": "explainBatch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Explainbatch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/batches/{batch_id}": {
+      "get": {
+        "summary": "Batch status with each name's headline, ranked by how unusual the move is",
+        "operationId": "getBatch",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Getbatch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BatchRequest": {
+        "properties": {
+          "tickers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Tickers",
+            "description": "Tickers to explain"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "lookback_days": {
+            "type": "integer",
+            "title": "Lookback Days",
+            "default": 30
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "lookback",
+              "since_earnings"
+            ],
+            "title": "Mode",
+            "default": "lookback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tickers"
+        ],
+        "title": "BatchRequest"
+      },
+      "Body_batch_create_batch_post": {
+        "properties": {
+          "rows": {
+            "type": "string",
+            "title": "Rows",
+            "default": ""
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string",
+                "contentMediaType": "application/octet-stream"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "lookback": {
+            "type": "string",
+            "title": "Lookback",
+            "default": "30"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "as_of"
+        ],
+        "title": "Body_batch_create_batch_post"
+      },
+      "Body_explain_form_explain_post": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "as_of": {
+            "type": "string",
+            "format": "date",
+            "title": "As Of"
+          },
+          "lookback": {
+            "type": "string",
+            "title": "Lookback",
+            "default": "30"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticker",
+          "as_of"
+        ],
+        "title": "Body_explain_form_explain_post"
+      },
+      "ExplainRequest": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker",
+            "description": "Ticker, company name or Bigdata.com rp_entity_id, e.g. NVDA"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "Analysis date (YYYY-MM-DD). Defaults to today. Point-in-time."
+          },
+          "lookback_days": {
+            "type": "integer",
+            "maximum": 180.0,
+            "minimum": 3.0,
+            "title": "Lookback Days",
+            "description": "Window length in days (ignored for since_earnings)",
+            "default": 30
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "lookback",
+              "since_earnings"
+            ],
+            "title": "Mode",
+            "description": "'since_earnings' starts the window at the last earnings call",
+            "default": "lookback"
+          },
+          "input_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Score",
+            "description": "Optional: the client's own score for this name and date"
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "maximum": 110.0,
+            "minimum": 0.0,
+            "title": "Wait Seconds",
+            "description": "How long to wait for the result before returning the run id to poll",
+            "default": 40
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticker"
+        ],
+        "title": "ExplainRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Your Bigdata API key. Each key is a separate user: runs are billed to that Bigdata.com account and only that key can read them."
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
+}

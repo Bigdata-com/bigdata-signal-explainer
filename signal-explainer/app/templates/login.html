@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<section class="card login-card">
+  <div class="eyebrow">Sign in</div>
+  <h1>Connect your Bigdata.com account</h1>
+  <p class="small muted">Paste your Bigdata API key. Explanations run on your own account, and you only see the reports you created. The key is checked with Bigdata.com, then kept encrypted in a browser cookie that page scripts cannot read. It is never saved on the server.</p>
+  {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/login" class="login-form">
+    <input type="hidden" name="next" value="{{ next }}">
+    <div><label for="name">Your name <span class="muted">(optional, shown in the header)</span></label>
+      <input id="name" name="name" value="{{ name or '' }}" autocomplete="name" maxlength="60"></div>
+    <div><label for="api_key">Bigdata API key</label>
+      <input id="api_key" name="api_key" type="password" autocomplete="off" required autofocus></div>
+    <div><button type="submit">Sign in</button></div>
+  </form>
+  <p class="small muted">No key yet? Create one in your Bigdata.com account settings. Using the API, the Claude skill or a ChatGPT action? Send the same key as <span class="mono">Authorization: Bearer &lt;key&gt;</span>.</p>
+</section>
+{% endblock %}
