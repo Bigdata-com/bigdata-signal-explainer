@@ -9,11 +9,11 @@ Give it a company, a point-in-time date and a lookback window (or "since the las
 ## Contents
 
 - [Walkthrough: Meta since its Q3 earnings call](#walkthrough-meta-since-its-q3-earnings-call)
+- [How it works](#how-it-works)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
 - [Ways to use it](#ways-to-use-it)
 - [API](#api)
-- [How it works](#how-it-works)
 - [Repository layout](#repository-layout)
 
 ## Walkthrough: Meta since its Q3 earnings call
@@ -56,6 +56,27 @@ Every cited passage comes with its date, source, sentiment and a link to the doc
 ![Evidence](docs/screenshots/06-evidence.png)
 
 Every run can also be copied as PM-ready Markdown (for email, ChatGPT or Claude) or saved as a PDF.
+
+## How it works
+
+![Pipeline: Bigdata.com calls, local attribution, OpenAI narrative](docs/screenshots/00-pipeline.png)
+
+Each run takes about 20–40 seconds:
+
+1. **Resolve** the ticker to a company in the Bigdata.com Knowledge Graph.
+2. **Set the window:** the last N days, or the time since the last earnings call.
+3. **Fetch from Bigdata.com in parallel:**
+   - the entity-sentiment series, with one year of history (`/v1/entity-sentiment/`)
+   - news passages for this window and the prior window of equal length, each split into 6 search slices (`/v1/search`)
+   - event topics for both windows (`/v1/search/co-mentions/topics`)
+   - co-mentioned peer companies (`/v1/search/co-mentions/entities`)
+   - earnings-call passages, in *since earnings* mode only
+4. **Attribute and compare,** computed locally with no LLM:
+   - the z-score of the move against the stock's own history
+   - each EDGE event type's impact on the change in tone
+   - the stock-specific part of the move, against the peer median
+5. **Narrate** with OpenAI (`gpt-6-sol`) under a strict JSON schema. Every claim cites evidence, and nothing after the as-of date is used.
+6. **Report** the run in the web UI, as Markdown and JSON, and through the Claude and ChatGPT integrations. Runs are stored in SQLite.
 
 ## Quick start
 
@@ -120,19 +141,6 @@ Every `/api/*` call needs `Authorization: Bearer <Bigdata API key>` and only see
 | `POST /api/batch` | `{tickers[], as_of?, lookback_days, mode}` → `batch_id` |
 | `GET /api/batches/{id}` | A batch's runs, ranked by how unusual each move is. |
 | `GET /runs/{id}/markdown` | The PM-ready Markdown. |
-
-## How it works
-
-Each run takes about 20–40 seconds:
-
-1. **Resolve** the company in the Bigdata.com Knowledge Graph.
-2. **Set the window:** a fixed lookback, or the time since the latest earnings-call transcript.
-3. **Fetch in parallel:** the entity-sentiment series (with a one-year baseline), news passages for the window and the prior window, and co-mentioned topics and companies.
-4. **Attribute** the change in tone to EDGE event types, and compare it with peers.
-5. **Narrate** with GPT-6 under a strict JSON schema. Every claim cites evidence, and nothing after the as-of date is used.
-6. **Store** the run in SQLite.
-
-Bigdata.com endpoints used: `/v1/knowledge-graph/companies`, `/v1/knowledge-graph/entities/id`, `/v1/entity-sentiment/`, `/v1/search` (fast mode), `/v1/search/co-mentions/topics`, `/v1/search/co-mentions/entities`.
 
 ## Repository layout
 
