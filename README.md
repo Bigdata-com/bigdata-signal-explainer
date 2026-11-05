@@ -12,6 +12,7 @@ Give it a company, a point-in-time date and a lookback window (or "since the las
 - [How it works](#how-it-works)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [Deploy to Fly.io](#deploy-to-flyio)
 - [Ways to use it](#ways-to-use-it)
 - [API](#api)
 - [Repository layout](#repository-layout)
@@ -120,6 +121,22 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 **Users and keys.** Everyone signs in with their own Bigdata API key, so Bigdata.com usage is billed to their own account, and they see only their own runs and batches. The web UI keeps the key encrypted in an HttpOnly cookie. API callers send it as `Authorization: Bearer <key>`. The server never stores the key: users are identified by a fingerprint of it.
 
 **Caching.** Bigdata.com responses for windows that end before today are cached, so re-running a past date costs nothing and reproduces the same inputs.
+
+## Deploy to Fly.io
+
+`signal-explainer/` ships with a `Dockerfile` and `fly.toml`. The app runs on one machine that never auto-stops, with SQLite on a 1 GB volume mounted at `/data`. It has to be one machine: SQLite can't be shared across machines, and runs execute in the server process, so a stopped machine would drop them.
+
+```bash
+cd signal-explainer
+fly apps create bigdata-signal-explainer
+fly volumes create signal_data --region iad --size 1 -a bigdata-signal-explainer
+fly secrets set -a bigdata-signal-explainer \
+  OPENAI_API_KEY=sk-... \
+  APP_SECRET=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+fly deploy
+```
+
+The app is then at `https://bigdata-signal-explainer.fly.dev`. Use `fly deploy` again after each change, and `fly logs` to watch it.
 
 ## Ways to use it
 
