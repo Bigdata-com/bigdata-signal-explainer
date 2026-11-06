@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from pathlib import Path
 from typing import Literal
-from urllib.parse import quote, urlparse
+from urllib.parse import urlencode, urlparse
 
 import markdown as md
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, UploadFile
@@ -137,22 +137,45 @@ async def api_user(request: Request) -> User:
 
 @app.exception_handler(LoginRequired)
 async def login_required(request: Request, _: LoginRequired):
-    # A form post can't be replayed after sign-in, so send the user back to the page it came from.
+    # Other form posts can't be replayed after sign-in, so send the user back to the page they came from.
     nxt = request.url.path + (f"?{request.url.query}" if request.url.query else "") if request.method == "GET" else (
         urlparse(request.headers.get("referer") or "/").path or "/")
-    resp = RedirectResponse(f"/login?next={quote(nxt)}", status_code=303)
+    query = {"next": nxt}
+    if request.method == "POST" and request.url.path == "/explain":
+        # The explain form is carried through sign-in, which then starts the run.
+        form = await request.form()
+        query |= {k: str(form.get(k) or "")[:60] for k in PENDING_FIELDS}
+    resp = RedirectResponse(f"/login?{urlencode(query)}", status_code=303)
     auth.clear_key_cookie(resp)
     return resp
 
 
+PENDING_FIELDS = ("ticker", "as_of", "lookback")
+
+
+def _pending_explain(ticker: str, as_of: str, lookback: str) -> dict | None:
+    """The explain request carried through sign-in, or None if there is none or it doesn't parse."""
+    if not ticker.strip():
+        return None
+    try:
+        day = date.fromisoformat(as_of)
+        days = 0 if lookback == "earnings" else int(lookback)
+    except ValueError:
+        return None
+    return {"ticker": ticker.strip().upper(), "as_of": day, "lookback": lookback, "days": days}
+
+
 @app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, next: str = "/"):
-    return templates.TemplateResponse(request, "login.html", {"next": _safe_next(next), "error": None})
+async def login_page(request: Request, next: str = "/", ticker: str = "", as_of: str = "", lookback: str = "30"):
+    return templates.TemplateResponse(request, "login.html", {"next": _safe_next(next), "error": None,
+                                                              "pending": _pending_explain(ticker, as_of, lookback)})
 
 
 @app.post("/login")
-async def login(request: Request, api_key: str = Form(...), name: str = Form(""), next: str = Form("/")):
+async def login(request: Request, api_key: str = Form(...), name: str = Form(""), next: str = Form("/"),
+                ticker: str = Form(""), as_of: str = Form(""), lookback: str = Form("30")):
     key, nxt = api_key.strip(), _safe_next(next)
+    pending = _pending_explain(ticker, as_of, lookback)
     err = None
     if not key or len(key) > 512:
         err = "Enter your Bigdata API key."
@@ -164,10 +187,13 @@ async def login(request: Request, api_key: str = Form(...), name: str = Form("")
             err = ("Bigdata.com did not accept this key." if e.status in (401, 403)
                    else f"Could not reach Bigdata.com to check the key ({e.status}). Try again.")
     if err:
-        return templates.TemplateResponse(request, "login.html", {"next": nxt, "error": err, "name": name},
-                                          status_code=401)
+        return templates.TemplateResponse(request, "login.html", {"next": nxt, "error": err, "name": name,
+                                                                  "pending": pending}, status_code=401)
     store.touch_user(uid, name=name.strip()[:60] or None, org_id=(q or {}).get("org_id"))
     auth.mark_verified(key)
+    if pending:
+        user = User(uid, key, (store.get_user(uid) or {}).get("name"))
+        nxt = f"/runs/{_explain(user, pending['ticker'], pending['as_of'], pending['lookback'])}"
     resp = RedirectResponse(nxt, status_code=303)
     auth.set_key_cookie(resp, key)
     return resp
@@ -193,12 +219,16 @@ async def home(request: Request, user: User | None = Depends(optional_user)):
         "model": settings.OPENAI_MODEL})
 
 
+def _explain(user: User, ticker: str, as_of: date, lookback: str) -> int:
+    """Start a run from the web form's fields: lookback is a number of days or "earnings"."""
+    mode = "since_earnings" if lookback == "earnings" else "lookback"
+    return _start_run(user, ticker, as_of, 0 if mode == "since_earnings" else int(lookback), mode)
+
+
 @app.post("/explain")
 async def explain_form(ticker: str = Form(...), as_of: date = Form(...), lookback: str = Form("30"),
                        user: User = Depends(web_user)):
-    mode = "since_earnings" if lookback == "earnings" else "lookback"
-    rid = _start_run(user, ticker, as_of, 0 if mode == "since_earnings" else int(lookback), mode)
-    return RedirectResponse(f"/runs/{rid}", status_code=303)
+    return RedirectResponse(f"/runs/{_explain(user, ticker, as_of, lookback)}", status_code=303)
 
 
 @app.get("/runs/{run_id}", response_class=HTMLResponse)

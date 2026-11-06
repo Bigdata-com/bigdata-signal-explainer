@@ -48,9 +48,36 @@ def test_dashboard_is_public_but_running_needs_sign_in():
     assert c.get("/method").status_code == 200
     r = c.post("/explain", data={"ticker": "NVDA", "as_of": "2026-10-28", "lookback": "30"},
                headers={"referer": "https://testserver/"}, follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"] == "/login?next=/"
+    assert r.status_code == 303
+    assert r.headers["location"] == "/login?next=%2F&ticker=NVDA&as_of=2026-10-28&lookback=30"
     r = c.get("/batch", follow_redirects=False)
-    assert r.status_code == 303 and r.headers["location"].startswith("/login?next=/batch")
+    assert r.status_code == 303 and r.headers["location"].startswith("/login?next=%2Fbatch")
+
+
+def test_explain_form_survives_sign_in():
+    c = browser()
+    r = c.post("/explain", data={"ticker": "lly", "as_of": "2026-10-28", "lookback": "earnings"},
+               headers={"referer": "https://testserver/"})
+    assert "explains <strong>LLY</strong> as of 2026-10-28, since the last earnings call" in r.text
+    # A wrong key keeps the pending run on the page.
+    r = c.post("/login", data={"api_key": "wrong", "next": "/", "ticker": "LLY", "as_of": "2026-10-28",
+                               "lookback": "earnings"})
+    assert r.status_code == 401 and 'name="ticker" value="LLY"' in r.text
+    # Signing in starts the run and lands on it.
+    r = c.post("/login", data={"api_key": ALICE, "next": "/", "ticker": "LLY", "as_of": "2026-10-28",
+                               "lookback": "earnings"}, follow_redirects=False)
+    rid = int(r.headers["location"].rsplit("/", 1)[1])
+    run = main.store.get_run(rid)
+    assert (run["ticker"], run["as_of"], run["mode"]) == ("LLY", "2026-10-28", "since_earnings")
+    assert c.get(f"/runs/{rid}").status_code == 200
+
+
+def test_sign_in_ignores_a_malformed_pending_run():
+    c = browser()
+    assert "pending-run" not in c.get("/login?next=/&ticker=NVDA&as_of=not-a-date&lookback=30").text
+    r = c.post("/login", data={"api_key": ALICE, "next": "/", "ticker": "NVDA", "as_of": "2026-10-28",
+                               "lookback": "abc"}, follow_redirects=False)
+    assert r.headers["location"] == "/"
 
 
 def test_public_demo_runs_open_to_everyone():

@@ -248,6 +248,7 @@ pre.code { margin: 0; background: #1f1d1a; color: #efe6d4; border-radius: 9px; p
 .login-card { max-width: 560px; margin: 24px auto; padding: 30px 32px; }
 .login-form { display: grid; gap: 14px; margin: 18px 0 14px; }
 .form-error { background: var(--neg-bg); color: var(--neg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.pending-run { background: var(--window); color: var(--ink-2); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
 .who { display: flex; align-items: center; gap: 10px; margin-left: 18px; padding-left: 18px; border-left: 1px solid var(--line); }
 .who-name { font-size: 13px; color: var(--ink-2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-sm { padding: 6px 12px; font-size: 13px; }

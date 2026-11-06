@@ -6,8 +6,12 @@
   <h1>Connect your Bigdata.com account</h1>
   <p class="small muted">Paste your Bigdata API key. Explanations run on your own account, and you only see the reports you created. The key is checked with Bigdata.com, then kept encrypted in a browser cookie that page scripts cannot read. It is never saved on the server.</p>
   {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+  {% if pending %}<p class="pending-run">After you sign in, Signal Explainer explains <strong>{{ pending.ticker }}</strong> as of {{ pending.as_of }}, {{ "since the last earnings call" if pending.lookback == "earnings" else "over " ~ pending.days ~ " days" }}.</p>{% endif %}
   <form method="post" action="/login" class="login-form">
     <input type="hidden" name="next" value="{{ next }}">
+    {% if pending %}<input type="hidden" name="ticker" value="{{ pending.ticker }}">
+    <input type="hidden" name="as_of" value="{{ pending.as_of }}">
+    <input type="hidden" name="lookback" value="{{ pending.lookback }}">{% endif %}
     <div><label for="name">Your name <span class="muted">(optional, shown in the header)</span></label>
       <input id="name" name="name" value="{{ name or '' }}" autocomplete="name" maxlength="60"></div>
     <div><label for="api_key">Bigdata API key</label>
